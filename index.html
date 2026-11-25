@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Time Calculator | คำนวณเวลาเช็กอินและขึ้นเครื่อง</title>
+    
+    <!-- Google Fonts: Prompt สำหรับภาษาไทย และ Inter / JetBrains Mono สำหรับตัวเลข -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        skybrand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            200: '#bae0fd',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#082f49',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* ซ่อน Scrollbar ของวงล้อปัดเวลาให้ดูสะอาดตา */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* ซ่อนลูกศรขึ้น-ลงของช่องกรอกตัวเลข */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between antialiased selection:bg-skybrand-100 selection:text-skybrand-900">
+
+    <!-- แถบหัวข้อด้านบน (Header) -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
+        <div class="max-w-lg mx-auto px-4 py-3.5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-skybrand-500 to-skybrand-800 text-white flex items-center justify-center shadow-sm shadow-skybrand-600/20">
+                    <!-- ไอคอนเครื่องบิน SVG -->
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-semibold text-slate-900 leading-tight">Flight Time Calculator</h1>
+                    <p class="text-xs text-slate-500">คำนวณเวลาเช็กอิน • เรียกขึ้นเครื่อง • เกทปิด</p>
+                </div>
+            </div>
+            
+            <!-- ปุ่มรีเซ็ตค่าเริ่มต้น -->
+            <button type="button" id="resetBtn" class="text-xs font-medium text-slate-600 hover:text-skybrand-600 bg-slate-100 hover:bg-skybrand-50 px-3.5 py-2 rounded-xl transition-colors cursor-pointer">
+                รีเซ็ต
+            </button>
+        </div>
+    </header>
+
+    <!-- เนื้อหาหลัก (Main Content) -->
+    <main class="max-w-lg w-full mx-auto px-4 py-6 space-y-5 flex-grow">
+
+        <!-- 1. การ์ดแสดงผลลัพธ์หลัก (เวลาเคาน์เตอร์เช็กอินปิด) -->
+        <section class="bg-gradient-to-br from-skybrand-700 via-skybrand-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl shadow-skybrand-900/15 relative overflow-hidden">
+            <!-- แสงตกแต่งพื้นหลัง -->
+            <div class="absolute -right-12 -top-12 w-44 h-44 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+            <div class="absolute -left-10 -bottom-10 w-36 h-36 rounded-full bg-sky-400/20 blur-xl pointer-events-none"></div>
+
+            <div class="relative z-10">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <span class="text-xs sm:text-sm font-medium text-sky-100 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        เวลาเคาน์เตอร์เช็กอินปิด
+                    </span>
+                    <span id="bufferBadge" class="text-xs font-medium bg-white/15 backdrop-blur-sm px-3 py-1 rounded-full text-white border border-white/10">
+                        ปิดก่อน 45 นาที
+                    </span>
+                </div>
+
+                <!-- ตัวเลขเวลาขนาดใหญ่ -->
+                <div class="flex items-baseline gap-2.5 my-2">
+                    <div id="resultTime" class="text-5xl sm:text-6xl font-bold font-mono tracking-tight text-white">
+                        14:45
+                    </div>
+                    <span class="text-xl sm:text-2xl font-medium text-sky-200">น.</span>
+                </div>
+
+                <!-- ป้ายแจ้งเตือนหากเวลาย้อนกลับไปข้ามเที่ยงคืน -->
+                <div id="prevDayAlert" class="hidden mt-2 mb-1.5 inline-flex items-center gap-1.5 bg-orange-500/25 border border-orange-400/50 text-orange-100 text-xs px-3 py-1.5 rounded-xl">
+                    <svg class="w-4 h-4 shrink-0 text-orange-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    <span id="prevDayText"><strong>วันก่อนหน้า (เมื่อวาน)</strong></span>
+                </div>
+
+                <p id="resultSubtext" class="text-xs sm:text-sm text-sky-100/90 mt-2 leading-relaxed">
+                    สำหรับเที่ยวบินออกเวลา <span class="font-semibold text-white">15:30 น.</span> กรุณาเช็กอินและโหลดสัมภาระให้เรียบร้อยก่อนเวลานี้
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. การ์ดตั้งค่าเวลา (Input Controls) -->
+        <section class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80 space-y-6">
+            
+            <!-- ส่วนที่ 1: ตัวเลือกเวลาเครื่องออก (Scroll Wheel Picker 24 ชม.) -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-sm font-semibold text-slate-800">
+                        1. เวลาเครื่องออก (Departure Time)
+                    </label>
+                    <span class="text-xs text-slate-400">ปัดขึ้น-ลง หรือแตะเพื่อพิมพ์</span>
+                </div>
+
+                <div class="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 relative select-none">
+                    <!-- แถบไฮไลต์ตรงกลาง -->
+                    <div class="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 h-11 bg-white rounded-xl shadow-sm border border-skybrand-200 z-0"></div>
+
+                    <div class="grid grid-cols-[1fr_auto_1fr] items-center relative z-10">
+                        
+                        <!-- วงล้อชั่วโมง (00-23) -->
+                        <div class="relative h-[132px] overflow-hidden flex flex-col items-center">
+                            <div class="pointer-events-none absolute inset-x-0 top-0 h-11 bg-gradient-to-b from-slate-50 via-slate-50/85 to-transparent z-20"></div>
+                            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-50 via-slate-50/85 to-transparent z-20"></div>
+                            
+                            <!-- ช่องกรอกตัวเลขเมื่อแตะตัวเลขตรงกลาง -->
+                            <input type="text" id="hourManualInput" inputmode="numeric" maxlength="2" aria-label="พิมพ์ชั่วโมง"
+                                class="hidden absolute top-1/2 -translate-y-1/2 w-16 h-10 text-center text-2xl font-mono font-bold text-skybrand-700 bg-white rounded-lg outline-none ring-2 ring-skybrand-500 z-30">
+
+                            <div id="hourWheel" class="w-full h-full overflow-y-auto snap-y snap-mandatory no-scrollbar py-[44px] cursor-grab active:cursor-grabbing">
+                                <!-- สร้างตัวเลข 00-23 ด้วย JS -->
+                            </div>
+                        </div>
+
+                        <!-- เครื่องหมายคั่น : -->
+                        <div class="text-2xl font-mono font-bold text-slate-400 px-2 pb-0.5">:</div>
+
+                        <!-- วงล้อนาที (00-59) -->
+                        <div class="relative h-[132px] overflow-hidden flex flex-col items-center">
+                            <div class="pointer-events-none absolute inset-x-0 top-0 h-11 bg-gradient-to-b from-slate-50 via-slate-50/85 to-transparent z-20"></div>
+                            <div class="pointer-events-none absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-50 via-slate-50/85 to-transparent z-20"></div>
+
+                            <!-- ช่องกรอกตัวเลขเมื่อแตะตัวเลขตรงกลาง -->
+                            <input type="text" id="minuteManualInput" inputmode="numeric" maxlength="2" aria-label="พิมพ์นาที"
+                                class="hidden absolute top-1/2 -translate-y-1/2 w-16 h-10 text-center text-2xl font-mono font-bold text-skybrand-700 bg-white rounded-lg outline-none ring-2 ring-skybrand-500 z-30">
+
+                            <div id="minuteWheel" class="w-full h-full overflow-y-auto snap-y snap-mandatory no-scrollbar py-[44px] cursor-grab active:cursor-grabbing">
+                                <!-- สร้างตัวเลข 00-59 ด้วย JS -->
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-2 text-center">เลื่อนปัดขึ้น-ลงเพื่อเลือกเวลา หรือแตะที่ตัวเลขตรงกลางเพื่อพิมพ์ตัวเลขตรงๆ</p>
+            </div>
+
+            <hr class="border-slate-100">
+
+            <!-- ส่วนที่ 2: ตั้งค่าเวลาเคาน์เตอร์ปิดก่อนเครื่องออก -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <label for="bufferInput" class="text-sm font-semibold text-slate-800">
+                        2. เคาน์เตอร์ปิดก่อนเครื่องออก (นาที)
+                    </label>
+                </div>
+
+                <!-- ปุ่มลัดเฉพาะ 2 ปุ่ม: 45 นาที และ 60 นาที -->
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <button type="button" data-minutes="45" class="preset-btn flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer">
+                        <span class="text-base font-bold font-mono">45 นาที</span>
+                        <span class="text-xs opacity-80">ในประเทศทั่วไป</span>
+                    </button>
+                    <button type="button" data-minutes="60" class="preset-btn flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all cursor-pointer">
+                        <span class="text-base font-bold font-mono">60 นาที</span>
+                        <span class="text-xs opacity-80">ต่างประเทศ</span>
+                    </button>
+                </div>
+
+                <!-- ช่องกรอกตัวเลขเองได้อิสระ พร้อมปุ่มเพิ่ม-ลดทีละ 5 นาที -->
+                <div class="flex items-center gap-2">
+                    <button type="button" id="decreaseBtn" aria-label="ลด 5 นาที"
+                        class="w-12 h-12 shrink-0 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold text-lg flex items-center justify-center transition-all cursor-pointer">
+                        -5
+                    </button>
+                    
+                    <div class="relative flex-grow flex items-center">
+                        <input type="number" id="bufferInput" min="0" max="1440" value="45" placeholder="ระบุนาที..." 
+                            class="w-full h-12 bg-slate-50 border border-slate-200 hover:border-skybrand-500 focus:border-skybrand-600 focus:ring-4 focus:ring-skybrand-500/10 rounded-2xl pl-4 pr-14 text-center text-lg font-mono font-bold text-slate-800 transition-all outline-none">
+                        <span class="absolute right-4 text-xs font-medium text-slate-400 pointer-events-none">นาที</span>
+                    </div>
+
+                    <button type="button" id="increaseBtn" aria-label="เพิ่ม 5 นาที"
+                        class="w-12 h-12 shrink-0 rounded-2xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold text-lg flex items-center justify-center transition-all cursor-pointer">
+                        +5
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. การ์ดไทม์ไลน์แนะนำเพิ่มเติม (เรียงตามลำดับเวลา) -->
+        <section class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-skybrand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    ไทม์ไลน์แนะนำการเดินทาง
+                </h2>
+                <span class="text-[11px] text-slate-400">เรียงตามลำดับเวลา</span>
+            </div>
+
+            <div class="relative pl-6 border-l-2 border-slate-200 space-y-5 ml-2">
+                
+                <!-- ลำดับที่ 1: เวลาควรถึงสนามบิน (ล่วงหน้า 3 ชม. – 2 ชม.) -->
+                <div class="relative">
+                    <span class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-4 ring-white"></span>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">เวลาควรถึงสนามบิน</p>
+                            <p class="text-xs text-slate-500">เผื่อเวลาล่วงหน้า 3 ชม. – 2 ชม.</p>
+                        </div>
+                        <div class="sm:text-right">
+                            <span id="arriveAirportRange" class="inline-block font-mono text-sm font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/80">
+                                12:30 - 13:30 น.
+                            </span>
+                            <div id="arriveAirportPrevDay" class="hidden text-[11px] font-medium text-orange-600 mt-0.5">
+                                วันก่อนหน้า (เมื่อวาน)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ลำดับที่ 2: เคาน์เตอร์เช็กอินปิด -->
+                <div class="relative">
+                    <span class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-amber-500 ring-4 ring-white"></span>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div>
+                            <p class="text-sm font-semibold text-amber-800">เคาน์เตอร์เช็กอินปิด</p>
+                            <p id="timelineBufferDesc" class="text-xs text-slate-500">ปิดก่อนเครื่องออก 45 นาที</p>
+                        </div>
+                        <div class="sm:text-right">
+                            <span id="timelineClosing" class="inline-block font-mono text-sm font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                14:45 น.
+                            </span>
+                            <div id="timelineClosingPrevDay" class="hidden text-[11px] font-medium text-orange-600 mt-0.5">
+                                วันก่อนหน้า (เมื่อวาน)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ลำดับที่ 3: เวลาเรียกขึ้นเครื่อง (Boarding: 45-40 นาทีก่อนเครื่องออก) -->
+                <div class="relative">
+                    <span class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-skybrand-500 ring-4 ring-white"></span>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div>
+                            <p class="text-sm font-semibold text-skybrand-800">เวลาเรียกขึ้นเครื่อง (Boarding)</p>
+                            <span class="inline-block mt-0.5 text-[11px] font-medium text-skybrand-700 bg-skybrand-50 px-2 py-0.5 rounded-md border border-skybrand-100">
+                                (45-40 นาทีก่อนเครื่องออก)
+                            </span>
+                        </div>
+                        <div class="sm:text-right">
+                            <span id="boardingRangeTime" class="inline-block font-mono text-sm font-bold text-skybrand-700 bg-skybrand-50 px-2.5 py-1 rounded-lg border border-skybrand-200/80">
+                                14:45 - 14:50 น.
+                            </span>
+                            <div id="boardingPrevDay" class="hidden text-[11px] font-medium text-orange-600 mt-0.5">
+                                วันก่อนหน้า (เมื่อวาน)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ลำดับที่ 4: เวลาเกทปิด (Gate Closes: 20 นาทีก่อนเครื่องออก) -->
+                <div class="relative">
+                    <span class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-rose-600 ring-4 ring-white"></span>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                        <div>
+                            <p class="text-sm font-semibold text-rose-700">เวลาเกทปิด (Gate Closes)</p>
+                            <span class="inline-block mt-0.5 text-[11px] font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200/80">
+                                (20 นาทีก่อนเครื่องออก)
+                            </span>
+                        </div>
+                        <div class="sm:text-right">
+                            <span id="gateCloseTime" class="inline-block font-mono text-sm font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                                15:10 น.
+                            </span>
+                            <div id="gateClosePrevDay" class="hidden text-[11px] font-medium text-orange-600 mt-0.5">
+                                วันก่อนหน้า (เมื่อวาน)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ลำดับที่ 5: เวลาเครื่องออก (Departure) -->
+                <div class="relative">
+                    <span class="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-slate-900 ring-4 ring-white"></span>
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-900">เวลาเครื่องออก (Departure)</p>
+                            <p class="text-xs text-slate-500">เวลาออกเดินทางตามตารางบิน</p>
+                        </div>
+                        <span id="timelineDeparture" class="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
+                            15:30 น.
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 4. ปุ่มคัดลอกสรุปเวลา (Copy Summary) -->
+        <div class="pt-1 pb-4">
+            <button type="button" id="copyBtn" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white font-medium py-3.5 px-5 rounded-2xl shadow-md shadow-slate-900/10 flex items-center justify-center gap-2 transition-all cursor-pointer">
+                <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                </svg>
+                <span>คัดลอกสรุปเวลา (Copy Summary)</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- แจ้งเตือน Toast เมื่อคัดลอกสำเร็จ -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white text-sm font-medium px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 opacity-0 pointer-events-none transition-all duration-300 translate-y-3 z-50">
+        <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+        </span>
+        <span>คัดลอกสรุปเวลาเรียบร้อยแล้ว!</span>
+    </div>
+
+    <!-- ช่องช่วยคัดลอกข้อความ (Fallback สำหรับ iFrame) -->
+    <textarea id="clipboardHelper" class="sr-only" aria-hidden="true"></textarea>
+
+    <!-- ส่วนท้าย (Footer) -->
+    <footer class="text-center py-4 px-4 text-xs text-slate-400 border-t border-slate-200/60 bg-white/50">
+        หมายเหตุ: เวลาปิดเคาน์เตอร์และเกทอาจแตกต่างกันตามสายการบินและสนามบิน โปรดตรวจสอบข้อมูลบนบัตรโดยสารอีกครั้ง
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // อ้างอิง DOM Elements ของวงล้อเลือกเวลา
+            const hourWheel = document.getElementById('hourWheel');
+            const minuteWheel = document.getElementById('minuteWheel');
+            const hourManualInput = document.getElementById('hourManualInput');
+            const minuteManualInput = document.getElementById('minuteManualInput');
+
+            // อ้างอิง DOM Elements ของตัวตั้งค่าเวลาปิดเคาน์เตอร์
+            const bufferInput = document.getElementById('bufferInput');
+            const decreaseBtn = document.getElementById('decreaseBtn');
+            const increaseBtn = document.getElementById('increaseBtn');
+            const presetBtns = document.querySelectorAll('.preset-btn');
+            const resetBtn = document.getElementById('resetBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const toast = document.getElementById('toast');
+            const clipboardHelper = document.getElementById('clipboardHelper');
+
+            // อ้างอิงส่วนแสดงผลลัพธ์หลัก
+            const resultTimeEl = document.getElementById('resultTime');
+            const bufferBadgeEl = document.getElementById('bufferBadge');
+            const prevDayAlertEl = document.getElementById('prevDayAlert');
+            const prevDayTextEl = document.getElementById('prevDayText');
+            const resultSubtextEl = document.getElementById('resultSubtext');
+
+            // อ้างอิงส่วนแสดงผลไทม์ไลน์
+            const arriveAirportRangeEl = document.getElementById('arriveAirportRange');
+            const arriveAirportPrevDayEl = document.getElementById('arriveAirportPrevDay');
+            
+            const timelineBufferDescEl = document.getElementById('timelineBufferDesc');
+            const timelineClosingEl = document.getElementById('timelineClosing');
+            const timelineClosingPrevDayEl = document.getElementById('timelineClosingPrevDay');
+            
+            const boardingRangeTimeEl = document.getElementById('boardingRangeTime');
+            const boardingPrevDayEl = document.getElementById('boardingPrevDay');
+            
+            const gateCloseTimeEl = document.getElementById('gateCloseTime');
+            const gateClosePrevDayEl = document.getElementById('gateClosePrevDay');
+            
+            const timelineDepartureEl = document.getElementById('timelineDeparture');
+
+            // สถานะเริ่มต้น: 15:30 น.
+            let selectedHour = 15;
+            let selectedMinute = 30;
+            const ITEM_HEIGHT = 44; // ความสูงแต่ละรายการในวงล้อ (px)
+
+            /**
+             * สร้างวงล้อหมุนปัดขึ้น-ปัดลง (Scroll Wheel Picker)
+             * รองรับ Touch, Mouse Drag & Wheel และแตะตัวเลขตรงกลางเพื่อพิมพ์ตัวเลขตรงๆ
+             */
+            function setupWheelPicker(wheelEl, manualInputEl, maxVal, onUpdate) {
+                for (let i = 0; i <= maxVal; i++) {
+                    const item = document.createElement('div');
+                    item.className = 'wheel-item h-[44px] flex items-center justify-center snap-center font-mono text-xl transition-all duration-150 text-slate-400';
+                    item.dataset.val = i;
+                    item.textContent = String(i).padStart(2, '0');
+                    wheelEl.appendChild(item);
+                }
+
+                const items = wheelEl.querySelectorAll('.wheel-item');
+
+                function highlightActiveItem(activeIndex) {
+                    items.forEach((el, idx) => {
+                        if (idx === activeIndex) {
+                            el.classList.add('text-2xl', 'font-bold', 'text-skybrand-700');
+                            el.classList.remove('text-xl', 'text-slate-400');
+                        } else {
+                            el.classList.remove('text-2xl', 'font-bold', 'text-skybrand-700');
+                            el.classList.add('text-xl', 'text-slate-400');
+                        }
+                    });
+                }
+
+                function scrollToValue(val, smooth = true) {
+                    const clamped = Math.max(0, Math.min(maxVal, val));
+                    wheelEl.scrollTo({
+                        top: clamped * ITEM_HEIGHT,
+                        behavior: smooth ? 'smooth' : 'auto'
+                    });
+                    highlightActiveItem(clamped);
+                    onUpdate(clamped);
+                }
+
+                // ตรวจจับการเลื่อนและ Snap ตรงกลางอัตโนมัติ
+                let scrollTimer = null;
+                wheelEl.addEventListener('scroll', () => {
+                    const index = Math.round(wheelEl.scrollTop / ITEM_HEIGHT);
+                    const clamped = Math.max(0, Math.min(maxVal, index));
+                    highlightActiveItem(clamped);
+                    onUpdate(clamped);
+
+                    clearTimeout(scrollTimer);
+                    scrollTimer = setTimeout(() => {
+                        if (Math.abs(wheelEl.scrollTop - (clamped * ITEM_HEIGHT)) > 1) {
+                            wheelEl.scrollTo({ top: clamped * ITEM_HEIGHT, behavior: 'smooth' });
+                        }
+                    }, 120);
+                }, { passive: true });
+
+                // รองรับการคลิกค้างแล้วลากด้วยเมาส์ (Mouse Drag)
+                let isDown = false;
+                let startY = 0;
+                let startScrollTop = 0;
+                let hasDragged = false;
+
+                wheelEl.addEventListener('mousedown', (e) => {
+                    isDown = true;
+                    hasDragged = false;
+                    startY = e.pageY;
+                    startScrollTop = wheelEl.scrollTop;
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (!isDown) return;
+                    const dy = e.pageY - startY;
+                    if (Math.abs(dy) > 4) hasDragged = true;
+                    wheelEl.scrollTop = startScrollTop - dy;
+                });
+
+                window.addEventListener('mouseup', () => {
+                    if (!isDown) return;
+                    isDown = false;
+                });
+
+                // คลิก/แตะตัวเลข: แตะตัวตรงกลางเพื่อพิมพ์ตัวเลข หรือแตะตัวอื่นเพื่อเลื่อนมาตรงกลาง
+                wheelEl.addEventListener('click', (e) => {
+                    if (hasDragged) return;
+                    const clickedItem = e.target.closest('.wheel-item');
+                    if (!clickedItem) return;
+
+                    const clickedVal = parseInt(clickedItem.dataset.val, 10);
+                    const currentVal = Math.round(wheelEl.scrollTop / ITEM_HEIGHT);
+
+                    if (clickedVal === currentVal) {
+                        manualInputEl.value = String(currentVal).padStart(2, '0');
+                        manualInputEl.classList.remove('hidden');
+                        manualInputEl.focus();
+                        manualInputEl.select();
+                    } else {
+                        scrollToValue(clickedVal, true);
+                    }
+                });
+
+                function commitManualInput() {
+                    if (manualInputEl.classList.contains('hidden')) return;
+                    let parsed = parseInt(manualInputEl.value, 10);
+                    if (isNaN(parsed)) {
+                        parsed = Math.round(wheelEl.scrollTop / ITEM_HEIGHT);
+                    }
+                    parsed = Math.max(0, Math.min(maxVal, parsed));
+                    manualInputEl.classList.add('hidden');
+                    scrollToValue(parsed, false);
+                }
+
+                manualInputEl.addEventListener('blur', commitManualInput);
+                manualInputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitManualInput();
+                    } else if (e.key === 'Escape') {
+                        manualInputEl.classList.add('hidden');
+                    }
+                });
+
+                manualInputEl.addEventListener('input', () => {
+                    manualInputEl.value = manualInputEl.value.replace(/[^0-9]/g, '');
+                });
+
+                return { scrollToValue };
+            }
+
+            /**
+             * ลบจำนวนนาทีออกจากเวลาตั้งต้น พร้อมตรวจสอบว่าข้ามย้อนกลับไปวันก่อนหน้าหรือไม่
+             */
+            function subtractMinutes(baseTotalMinutes, minutesToSubtract) {
+                let diff = baseTotalMinutes - minutesToSubtract;
+                let daysBack = 0;
+
+                while (diff < 0) {
+                    diff += 1440; // 1,440 นาที = 24 ชั่วโมง
+                    daysBack++;
+                }
+
+                const h = Math.floor(diff / 60) % 24;
+                const m = diff % 60;
+                const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+                return {
+                    formatted,
+                    daysBack,
+                    textWithDay: daysBack > 0 ? `${formatted} น. (วันก่อนหน้า/เมื่อวาน)` : `${formatted} น.`
+                };
+            }
+
+            /**
+             * อัปเดตสถานะปุ่มลัด 45 และ 60 นาที
+             */
+            function updatePresetStyles(currentMinutes) {
+                presetBtns.forEach(btn => {
+                    const btnMins = parseInt(btn.getAttribute('data-minutes'), 10);
+                    if (btnMins === currentMinutes) {
+                        btn.classList.add('bg-skybrand-50', 'border-skybrand-600', 'text-skybrand-800', 'ring-2', 'ring-skybrand-500/20');
+                        btn.classList.remove('bg-slate-50', 'border-slate-200', 'text-slate-600', 'hover:bg-slate-100');
+                    } else {
+                        btn.classList.remove('bg-skybrand-50', 'border-skybrand-600', 'text-skybrand-800', 'ring-2', 'ring-skybrand-500/20');
+                        btn.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-600', 'hover:bg-slate-100');
+                    }
+                });
+            }
+
+            /**
+             * อัปเดตป้ายแจ้งเตือนวันก่อนหน้าในรายการไทม์ไลน์
+             */
+            function togglePrevDayBadge(el, daysBack) {
+                if (daysBack > 0) {
+                    el.classList.remove('hidden');
+                    el.textContent = daysBack > 1 ? `ย้อนหลัง ${daysBack} วัน` : 'วันก่อนหน้า (เมื่อวาน)';
+                } else {
+                    el.classList.add('hidden');
+                }
+            }
+
+            /**
+             * คำนวณเวลาทั้งหมดแบบเรียลไทม์
+             */
+            function calculateAll() {
+                try {
+                    const depHour = selectedHour;
+                    const depMin = selectedMinute;
+                    
+                    let bufferMins = parseInt(bufferInput.value, 10);
+                    if (isNaN(bufferMins) || bufferMins < 0) {
+                        bufferMins = 0;
+                    }
+
+                    const depTotalMinutes = (depHour * 60) + depMin;
+                    const depFormatted = `${String(depHour).padStart(2, '0')}:${String(depMin).padStart(2, '0')}`;
+
+                    // 1. คำนวณเวลาเคาน์เตอร์ปิด
+                    const closingResult = subtractMinutes(depTotalMinutes, bufferMins);
+
+                    // 2. คำนวณไทม์ไลน์แนะนำเพิ่มเติม
+                    const arrive3hResult = subtractMinutes(depTotalMinutes, 180); // ล่วงหน้า 3 ชม.
+                    const arrive2hResult = subtractMinutes(depTotalMinutes, 120); // ล่วงหน้า 2 ชม.
+                    const boarding45Result = subtractMinutes(depTotalMinutes, 45); // เรียกขึ้นเครื่องเริ่ม 45 นาทีก่อนออก
+                    const boarding40Result = subtractMinutes(depTotalMinutes, 40); // เรียกขึ้นเครื่องถึง 40 นาทีก่อนออก
+                    const gateCloseResult = subtractMinutes(depTotalMinutes, 20);  // เกทปิด 20 นาทีก่อนเครื่องออก
+
+                    // อัปเดตการ์ดหลัก (Hero Card)
+                    resultTimeEl.textContent = closingResult.formatted;
+                    bufferBadgeEl.textContent = `ปิดก่อน ${bufferMins} นาที`;
+                    
+                    if (closingResult.daysBack > 0) {
+                        prevDayAlertEl.classList.remove('hidden');
+                        prevDayAlertEl.classList.add('inline-flex');
+                        prevDayTextEl.innerHTML = closingResult.daysBack > 1 
+                            ? `<strong>ย้อนหลัง ${closingResult.daysBack} วัน</strong>` 
+                            : `<strong>วันก่อนหน้า (เมื่อวาน)</strong>`;
+                    } else {
+                        prevDayAlertEl.classList.add('hidden');
+                        prevDayAlertEl.classList.remove('inline-flex');
+                    }
+
+                    resultSubtextEl.innerHTML = `สำหรับเที่ยวบินออกเวลา <span class="font-semibold text-white">${depFormatted} น.</span> กรุณาเช็กอินและโหลดสัมภาระให้เรียบร้อยก่อนเวลานี้`;
+
+                    // อัปเดตไทม์ไลน์ (เรียงจากเช้าไปหาเวลาเครื่องออก)
+                    // 1. เวลาควรถึงสนามบิน
+                    arriveAirportRangeEl.textContent = `${arrive3hResult.formatted} - ${arrive2hResult.formatted} น.`;
+                    togglePrevDayBadge(arriveAirportPrevDayEl, Math.max(arrive3hResult.daysBack, arrive2hResult.daysBack));
+
+                    // 2. เคาน์เตอร์เช็กอินปิด
+                    timelineBufferDescEl.textContent = `ปิดก่อนเครื่องออก ${bufferMins} นาที`;
+                    timelineClosingEl.textContent = `${closingResult.formatted} น.`;
+                    togglePrevDayBadge(timelineClosingPrevDayEl, closingResult.daysBack);
+
+                    // 3. เวลาเรียกขึ้นเครื่อง (Boarding: 45-40 นาทีก่อนเครื่องออก)
+                    boardingRangeTimeEl.textContent = `${boarding45Result.formatted} - ${boarding40Result.formatted} น.`;
+                    togglePrevDayBadge(boardingPrevDayEl, Math.max(boarding45Result.daysBack, boarding40Result.daysBack));
+
+                    // 4. เวลาเกทปิด (20 นาทีก่อนเครื่องออก)
+                    gateCloseTimeEl.textContent = `${gateCloseResult.formatted} น.`;
+                    togglePrevDayBadge(gateClosePrevDayEl, gateCloseResult.daysBack);
+
+                    // 5. เวลาเครื่องออก
+                    timelineDepartureEl.textContent = `${depFormatted} น.`;
+
+                    // อัปเดตสีปุ่ม Preset
+                    updatePresetStyles(bufferMins);
+
+                } catch (err) {
+                    console.error('เกิดข้อผิดพลาดในการคำนวณ:', err);
+                }
+            }
+
+            /**
+             * คัดลอกข้อความสรุปไทม์ไลน์ทั้งหมดลงคลิปบอร์ด
+             */
+            function copySummaryToClipboard() {
+                const depFormatted = `${String(selectedHour).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
+                const bufferMins = parseInt(bufferInput.value, 10) || 0;
+                const depTotalMinutes = (selectedHour * 60) + selectedMinute;
+
+                const arrive3h = subtractMinutes(depTotalMinutes, 180);
+                const arrive2h = subtractMinutes(depTotalMinutes, 120);
+                const closing = subtractMinutes(depTotalMinutes, bufferMins);
+                const boarding45 = subtractMinutes(depTotalMinutes, 45);
+                const boarding40 = subtractMinutes(depTotalMinutes, 40);
+                const gateClose = subtractMinutes(depTotalMinutes, 20);
+
+                const arriveDayTag = (arrive3h.daysBack > 0 || arrive2h.daysBack > 0) ? ' (วันก่อนหน้า/เมื่อวาน)' : '';
+                const boardingDayTag = (boarding45.daysBack > 0 || boarding40.daysBack > 0) ? ' (วันก่อนหน้า/เมื่อวาน)' : '';
+
+                const summaryText = [
+                    `✈️ สรุปตารางเวลาเที่ยวบิน`,
+                    `• เวลาควรถึงสนามบิน (3-2 ชม. ก่อนออก): ${arrive3h.formatted} - ${arrive2h.formatted} น.${arriveDayTag}`,
+                    `• เคาน์เตอร์เช็กอินปิด (ก่อน ${bufferMins} นาที): ${closing.textWithDay}`,
+                    `• เวลาเรียกขึ้นเครื่อง (45-40 นาทีก่อนออก): ${boarding45.formatted} - ${boarding40.formatted} น.${boardingDayTag}`,
+                    `• เวลาเกทปิด (20 นาทีก่อนออก): ${gateClose.textWithDay}`,
+                    `• เวลาเครื่องออก: ${depFormatted} น.`
+                ].join('\n');
+
+                clipboardHelper.value = summaryText;
+                clipboardHelper.select();
+                clipboardHelper.setSelectionRange(0, 99999);
+
+                try {
+                    document.execCommand('copy');
+                    showToast();
+                } catch (err) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(summaryText).then(showToast).catch(console.error);
+                    }
+                }
+            }
+
+            let toastTimeout = null;
+            function showToast() {
+                toast.classList.remove('opacity-0', 'translate-y-3', 'pointer-events-none');
+                toast.classList.add('opacity-100', 'translate-y-0');
+
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-3', 'pointer-events-none');
+                    toast.classList.remove('opacity-100', 'translate-y-0');
+                }, 2600);
+            }
+
+            // เริ่มต้นสร้างวงล้อชั่วโมงและนาที
+            const hourController = setupWheelPicker(hourWheel, hourManualInput, 23, (val) => {
+                if (selectedHour !== val) {
+                    selectedHour = val;
+                    calculateAll();
+                }
+            });
+
+            const minuteController = setupWheelPicker(minuteWheel, minuteManualInput, 59, (val) => {
+                if (selectedMinute !== val) {
+                    selectedMinute = val;
+                    calculateAll();
+                }
+            });
+
+            // ฟังก์ชันรีเซ็ตค่าเริ่มต้น (15:30 น. / เคาน์เตอร์ปิด 45 นาที)
+            function setDefaults(smooth = false) {
+                selectedHour = 15;
+                selectedMinute = 30;
+                bufferInput.value = 45;
+                hourController.scrollToValue(15, smooth);
+                minuteController.scrollToValue(30, smooth);
+                calculateAll();
+            }
+
+            // Event Listeners สำหรับช่องกรอกเวลาปิดเคาน์เตอร์และปุ่มต่างๆ
+            bufferInput.addEventListener('input', calculateAll);
+
+            decreaseBtn.addEventListener('click', () => {
+                const current = parseInt(bufferInput.value, 10) || 0;
+                bufferInput.value = Math.max(0, current - 5);
+                calculateAll();
+            });
+
+            increaseBtn.addEventListener('click', () => {
+                const current = parseInt(bufferInput.value, 10) || 0;
+                bufferInput.value = Math.min(1440, current + 5);
+                calculateAll();
+            });
+
+            presetBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const mins = parseInt(btn.getAttribute('data-minutes'), 10);
+                    bufferInput.value = mins;
+                    calculateAll();
+                });
+            });
+
+            resetBtn.addEventListener('click', () => setDefaults(true));
+            copyBtn.addEventListener('click', copySummaryToClipboard);
+
+            // สั่งคำนวณและจัดตำแหน่งเริ่มต้นทันทีเมื่อโหลดหน้าเว็บ
+            setDefaults(false);
+        });
+    </script>
+</body>
+</html>
